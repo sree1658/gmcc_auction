@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>MU Auction War Room</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f5f7;--card:#fff;--tx:#14181f;--mut:#64707f;--bd:#dde1e7;--g:#1e9e5a;--gb:#dff3e8;--br:#c2763a;--brb:#f8e9dc;--bl:#2f7fd1;--blb:#dcebfa;--me:#6a3fd6;--red:#d9363e;--amb:#c98a00}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1218;--card:#181c24;--tx:#e8ecf2;--mut:#8b96a6;--bd:#2a303b;--gb:#16372a;--brb:#3c2a1b;--blb:#16314d;--me:#9d7bff}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:12px;max-width:1200px;margin:auto}
+h1{font-size:19px;margin:0}h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 8px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:10px}
+.grid{display:grid;gap:10px;grid-template-columns:1fr 1fr}@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.teams{display:grid;gap:8px;grid-template-columns:1fr 1fr}
+.team{border:1px solid var(--bd);border-radius:10px;padding:8px}.team.me{border:2px solid var(--me)}
+.team b{font-size:15px}.row{display:flex;justify-content:space-between;gap:6px;font-size:12.5px}.mut{color:var(--mut)}
+.bar{height:6px;background:var(--bd);border-radius:4px;overflow:hidden;margin:4px 0}.bar i{display:block;height:100%;background:var(--me)}
+.big{font-size:22px;font-weight:700}
+.chip{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11.5px;margin:1px 2px 1px 0;border:1px solid var(--bd)}
+.G{background:var(--gb);border-color:var(--g)}.B{background:var(--brb);border-color:var(--br)}.L{background:var(--blb);border-color:var(--bl)}.N{background:transparent}
+.sold{opacity:.45;text-decoration:line-through}.mine{outline:2px solid var(--me);opacity:1;text-decoration:none}
+.verdict{font-size:18px;font-weight:800;padding:6px 10px;border-radius:8px;display:inline-block}
+.go{background:var(--gb);color:var(--g)}.mid{background:var(--brb);color:var(--br)}.no{background:rgba(217,54,62,.14);color:var(--red)}
+input,select,button{font:inherit;padding:6px 9px;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--tx)}
+button{cursor:pointer}button.p{background:var(--me);color:#fff;border-color:var(--me);font-weight:600}input[type=number]{width:84px}
+.pl{display:grid;gap:6px;grid-template-columns:repeat(3,1fr)}@media(max-width:820px){.pl{grid-template-columns:1fr}}
+.pc{border:1px solid var(--bd);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:pointer;border-left-width:5px}
+.pc.G{border-left-color:var(--g);background:var(--card)}.pc.B{border-left-color:var(--br);background:var(--card)}.pc.L{border-left-color:var(--bl);background:var(--card)}.pc.N{border-left-color:var(--bd)}
+.pc.on{box-shadow:0 0 0 2px var(--me)}.pc.done{opacity:.5}
+.tbl{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}td,th{padding:5px 6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.warn{background:rgba(201,138,0,.14);border:1px solid var(--amb);border-radius:8px;padding:6px 9px;margin-top:6px;font-size:13px}
+ul{margin:4px 0 0;padding-left:18px}
+</style></head><body>
+<div class="top"><div><h1>MU Auction War Room</h1><span class="mut">You are MU’s VC · 24 players, 24 slots, nobody goes unsold</span></div>
+<div>Base <input id="base" type="number" value="100" style="width:60px"> Step <input id="step" type="number" value="10" style="width:60px"> <button id="undo">↶ Undo last</button> <button id="reset">Clear all</button> <button id="bk">Backup</button> <button id="rs">Restore</button></div></div>
+<div class="card" id="teams"></div>
+<div class="grid">
+<div class="card" id="desk"></div>
+<div class="card" id="plan"></div>
+</div>
+<div class="card"><h2>Player board · click any player to put them on the block</h2><div class="pl" id="board"></div>
+<div class="mut" style="margin-top:4px;font-size:12px">Colours = your preference (green love · brown backup · blue least · grey no view). Stats come from Sheet 1 (tiny samples, use as a tiebreaker only).</div></div>
+<div class="card"><h2>Sales log · auto-saved in this browser · ✎ edit or ✕ remove any sale</h2><div id="log" class="mut"></div></div>
+<script>
+const T=["MU","RK","SS","BB"],ME="MU",PUR=2000,N=6;
+const PRE={MU:["Kittu","Sreeram"],RK:["Srikanth Sir","Chandra"],SS:["Santhosh","Vysak"],BB:["LN","Yuvanesh"]};
+// name,cat(A/B/W),pref,exp, stats[runs,avg,SR,eco,wkts,catches]
+const P=[["MC","A","G",600,[211,21.1,170,9.3,2,8]],["Muthu","A","G",600,[128,25.6,160,7,3,2]],["Adithya","A","G",600],["Bala","A","G",600,[54,13.5,135,6.5,3,2]],["GP","A","G",300,[97,13.9,101,7.5,2,8]],["Dr Mani","A","G",300,[70,14,119,6.4,1,6]],["Amar","A","B",600],["Rajeev","A","G",200,[16,8,89,6.5,2,2]],
+["Harish","B","L",100],["Ganesan","B","B",300,[152,21.7,173,9.2,3,6]],["Dhandapani","B","L",100],["Murali","B","N",100],["Venky","B","B",200],["BK","B","B",200],["Vibin","B","L",100,[42,5.3,84,9.5,3,2]],["RK","B","L",100,[40,20,267,7,3,1]],
+["Prasana","W","G",200,[13,3.3,72,5.7,2,3]],["Rahul","W","L",150],["Naveen","W","N",100,[41,10.3,164,7,3,0]],["Aravinth","W","G",600],["Prashanth N","W","N",100,[40,5.7,105,8.1,2,6]],["Sabareesh","W","L",100],["Balaji Sir","W","G",200,[40,10,103,11.8,3,1]],["GaneshViku","W","N",100]];
+const SL=[[600,["Muthu","Bala","MC"]],[600,["Aravinth","Adithya","Amar"]],[300,["GP","Dr Mani","Ganesan"]],[200,["Rajeev","Prasana","Rahul"]],[200,["Balaji Sir","BK","Venky"]],[100,["Vibin","Dhandapani","Harish","Sabareesh","Rahul","RK"]]];
+const MUL={G:1.3,B:1.1,L:.85,N:.8},CN={A:"AR",B:"BAT",W:"BOWL"},$=id=>document.getElementById(id);
+const by=n=>P.find(p=>p[0]===n);
+const PH=["A","W","B"],PHN={A:"All-rounders",W:"Bowlers",B:"Batsmen"};
+let S={log:[],block:null,base:100,step:10};
+try{const x=JSON.parse(localStorage.getItem("mu_auc2")||"null");if(x)S=x}catch(e){}
+const save=()=>{try{localStorage.setItem("mu_auc2",JSON.stringify(S))}catch(e){}};
+const soldOf=n=>S.log.find(l=>l.n===n);
+const r5=v=>Math.max(0,Math.floor(v/S.step)*S.step);
+function ts(t){const k=S.log.filter(l=>l.t===t),pl=k.map(l=>by(l.n)),spent=k.reduce((a,l)=>a+l.p,0),purse=PUR-spent,left=N-k.length;
+return{k,pl,spent,purse,left,max:left?Math.max(0,purse-S.base*(left-1)):0,ar:pl.filter(p=>p[1]=="A").length,bat:pl.filter(p=>p[1]=="B").length,bow:pl.filter(p=>p[1]=="W").length,talent:pl.reduce((a,p)=>a+p[3],0),val:k.reduce((a,l)=>a+by(l.n)[3]-l.p,0)}}
+function slots(){const m=ts(ME),f=SL.map(s=>({tier:s[0],ch:s[1],got:null}));
+m.k.forEach(l=>{let c=f.filter(s=>!s.got&&s.ch.includes(l.n)).sort((a,b)=>b.tier-a.tier)[0]||f.filter(s=>!s.got).sort((a,b)=>a.tier-b.tier)[0];if(c)c.got=l});return f}
+function advise(p){const m=ts(ME),f=slots().filter(s=>!s.got);if(!f.length)return{v:"FULL",c:0,cls:"no",why:"Your squad is full."};
+let s=f.filter(x=>x.ch.includes(p[0])).sort((a,b)=>b.tier-a.tier)[0],plan=!!s;if(!s)s=f.sort((a,b)=>a.tier-b.tier)[0];
+const rest=f.filter(x=>x!==s);let tg=(plan?s.tier:S.base)*MUL[p[2]];let why=[plan?`Fills your ${s.tier} slot`:"Off-plan player, capped low"];
+const sc=m.purse-rest.reduce((a,x)=>a+Math.max(S.base,.6*x.tier),0),hm=m.purse-S.base*rest.length;
+if(p[1]=="A"){if(m.ar<2){tg*=1.15;why.push(`Only ${m.ar}/2 ARs so far, +15%`)}else{tg*=.85;why.push("Already have 2 ARs, −15%")}}
+let c=r5(Math.min(tg,Math.max(sc,S.base),hm));if(c<S.base)c=Math.min(S.base,hm);
+if(c<tg)why.push(c==r5(hm)?"Capped by must-keep base for remaining slots":"Capped to protect budget for your other slots");
+const th=T.filter(t=>t!=ME&&ts(t).max>=c&&ts(t).left>0).length;
+const cls=p[2]=="G"||(p[2]=="B"&&c>=p[3]*.9)?"go":p[2]=="L"||p[2]=="N"?"mid":"mid";
+return{v:c<=S.base&&p[2]!="G"?"PASS (or base only)":p[2]=="G"?"GO":p[2]=="B"?"BID IF FAIR":"VALUE ONLY",c,cls:c<=S.base&&p[2]!="G"?"no":cls,why:why.join(" · "),th}}
+function stat(p){const s=p[4];return s?`${s[1]} avg · ${s[2]} SR · ${s[3]} eco · ${s[4]}w · ${s[5]}c`:"no stats"}
+function render(){
+if(S.block&&soldOf(S.block))S.block=null;
+const ph=PH.find(c=>P.some(q=>q[1]==c&&!soldOf(q[0])));
+$("base").value=S.base;$("step").value=S.step;
+$("teams").innerHTML="<h2>Squads · purse 2000 each after C/VC · 6 to buy</h2><div class='teams'>"+T.map(t=>{const x=ts(t);return`<div class="team ${t==ME?"me":""}"><div class="row"><b>${t}${t==ME?" (you)":""}</b><span class="mut">${x.left} to take</span></div>
+<div class="row"><span class="big">${x.purse}</span><span class="mut">max bid <b style="color:var(--tx)">${x.max}</b><br>avg/slot ${x.left?Math.round(x.purse/x.left):0}</span></div>
+<div class="bar"><i style="width:${x.purse/PUR*100}%"></i></div>
+<div class="mut" style="font-size:12px">C ${PRE[t][0]} · VC ${PRE[t][1]}</div>
+<div>${x.k.map(l=>`<span class="chip ${by(l.n)[2]}">${l.n} ${l.p}</span>`).join("")||"<span class='mut'>no buys yet</span>"}</div>
+<div class="row mut"><span>AR ${x.ar} · BAT ${x.bat} · BOWL ${x.bow}</span><span>Strength ${x.talent} · Value ${x.val>=0?"+":""}${x.val}</span></div></div>`}).join("")+"</div>";
+const p=S.block?by(S.block):null;let d="<h2>Auction desk</h2>";
+if(!p)d+=ph?`<div class='big'>Now: ${PHN[ph]}</div><div class='mut'>Players are called randomly. Click the player on the block in the board below. ${P.filter(q=>q[1]==ph&&!soldOf(q[0])).length} left in this round.</div>`:"<div class='big'>Auction complete 🎉</div>";else{const a=advise(p);
+d+=`<div class="row"><div><div class="big">${p[0]}</div><span class="chip ${p[2]}">${CN[p[1]]}</span><span class="mut">my value ${p[3]} · ${stat(p)}</span></div><div style="text-align:right"><span class="verdict ${a.cls}">${a.v}</span><div class="big">≤ ${a.c}</div></div></div>
+<div class="mut" style="margin:6px 0">${a.why}</div>${a.th!=null?`<div>${a.th?`<b>${a.th}</b> rival(s) can still bid above your ceiling.`:"No rival can afford to beat your ceiling."}</div>`:""}
+<div style="margin-top:8px"><select id="bt">${T.map(t=>`<option ${t==ME?"selected":""}>${t}</option>`).join("")}</select> <input id="pr" type="number" placeholder="price" value="${a.c||S.base}"> <button class="p" id="sell">Sold</button></div>`;}
+$("desk").innerHTML=d;
+const f=slots(),m=ts(ME);
+$("plan").innerHTML="<h2>Your 6-slot plan</h2><div class='tbl'><table>"+f.map((s,i)=>`<tr><td><b>${s.tier}</b></td><td>${s.got?`<span class="chip G mine">${s.got.n} · paid ${s.got.p}</span> <span class="mut">${s.got.p<=s.tier?"saved "+(s.tier-s.got.p):"over by "+(s.got.p-s.tier)}</span>`:s.ch.map(n=>{const o=soldOf(n);return`<span class="chip ${by(n)[2]} ${o?"sold":""}">${n}${o?" → "+o.t:""}</span>`}).join("")}${!s.got&&s.ch.every(n=>soldOf(n))?`<div class="warn">All choices gone. Best left: ${P.filter(q=>!soldOf(q[0])).sort((a,b)=>"GBNL".indexOf(a[2])-"GBNL".indexOf(b[2])||b[3]-a[3]).slice(0,3).map(q=>q[0]).join(", ")}</div>`:""}</td></tr>`).join("")+`</table></div>
+<div class="row" style="margin-top:6px"><b>ARs ${m.ar}/2 target</b><span class="mut">plan reserve ${f.filter(s=>!s.got).reduce((a,s)=>a+s.tier,0)} vs purse ${m.purse}</span></div>${m.ar<2&&P.filter(q=>q[1]=="A"&&!soldOf(q[0])).length<=2-m.ar+1?'<div class="warn">AR supply is running thin, you need 2.</div>':""}`;
+$("board").innerHTML=PH.map(c=>`<div><h2>${CN[c]=="AR"?"All-rounders":CN[c]=="BAT"?"Batsmen":"Bowlers"}</h2>${P.filter(q=>q[1]==c).map(q=>{const o=soldOf(q[0]);return`<div class="pc ${q[2]} ${S.block==q[0]?"on":""} ${o?"done":""}" data-n="${q[0]}"><div class="row"><b>${q[0]}</b><span>${o?`<span class="chip ${o.t==ME?"mine":""}">${o.t} ${o.p}</span>`:"~"+q[3]}</span></div><div class="mut" style="font-size:12px">${stat(q)}</div></div>`}).join("")}</div>`).join("");
+document.querySelectorAll(".pc").forEach(e=>e.onclick=()=>{S.block=e.dataset.n;save();render()});
+$("log").innerHTML=S.log.length?S.log.map((l,i)=>S.ed===i?`${i+1}. ${l.n} <select id="et">${T.map(t=>`<option ${t==l.t?"selected":""}>${t}</option>`).join("")}</select> <input id="ep" type="number" value="${l.p}" step="${S.step}"> <button class="p" id="es">Save</button> <button id="ec">Cancel</button>`:`${i+1}. ${l.n} → <b>${l.t}</b> ${l.p} <button data-e="${i}">✎</button> <button data-d="${i}">✕</button>`).reverse().join("<br>"):"Nothing sold yet.";
+document.querySelectorAll("[data-e]").forEach(b=>b.onclick=()=>{S.ed=+b.dataset.e;render()});
+document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{if(confirm("Remove this sale?")){S.log.splice(+b.dataset.d,1);S.ed=null;render()}});
+if($("ec"))$("ec").onclick=()=>{S.ed=null;render()};
+if($("es"))$("es").onclick=()=>{const c=S.log.map(x=>({...x}));c[S.ed].t=$("et").value;c[S.ed].p=+$("ep").value;
+const ok=c.every(x=>x.p>=S.base)&&T.every(t=>{const k=c.filter(x=>x.t==t);return k.length<=N&&k.reduce((a,x)=>a+x.p,0)+S.base*(N-k.length)<=PUR});
+if(!ok){alert("Not valid: price must be at least base, max 6 players per team, and each team must keep base × open slots.");return}S.log=c;S.ed=null;render()};
+if($("sell"))$("sell").onclick=sell;if($("pr"))$("pr").onkeydown=e=>{if(e.key=="Enter")sell()};save()}
+function sell(){const p=+$("pr").value,t=$("bt").value,x=ts(t);if(!(p>=S.base)||x.left<1||p>x.max){alert(`${t} can bid at most ${x.max} (and ${x.left} slot(s) left). Base is ${S.base}.`);return}
+S.log.push({n:S.block,t,p});S.block=null;render()}
+$("undo").onclick=()=>{S.ed=null;const l=S.log.pop();if(l)S.block=l.n;render()};
+$("reset").onclick=()=>{if(confirm("Clear the whole auction?")){S={log:[],block:null,base:100,step:10};render()}};
+$("base").onchange=e=>{S.base=+e.target.value||100;render()};$("step").onchange=e=>{S.step=+e.target.value||10;render()};
+$("bk").onclick=()=>{const j=JSON.stringify(S);try{navigator.clipboard.writeText(j).then(()=>alert("Backup copied to clipboard"),()=>prompt("Copy your backup:",j))}catch(e){prompt("Copy your backup:",j)}};
+$("rs").onclick=()=>{const j=prompt("Paste backup");if(!j)return;try{const x=JSON.parse(j);if(!Array.isArray(x.log))throw 0;S=x;S.ed=null;render()}catch(e){alert("Invalid backup")}};
+S.ed=null;render();
+</script></body></html>
